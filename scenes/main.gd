@@ -4,6 +4,7 @@ extends Node
 @onready var hud = $HUD
 @onready var snake_container = $Snake
 @onready var move_timer = $MoveTimer
+@onready var game_over_menu = $GameOverMenu
 
 var score : int
 var game_started : bool = false
@@ -29,19 +30,25 @@ var can_move : bool
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	new_game()
+	
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
 	move_snake()
+	
 
 
 func new_game() -> void:
+	get_tree().paused = false
+	get_tree().call_group("segments", "queue_free")
+	game_over_menu.hide()
 	score = 0
 	hud.get_node("ScoreLabel").text = "SCORE: " + str(score)
 	move_dir = Vector2.UP
 	can_move = true
 	generate_snake()
+	move_food()
 	
 	
 func generate_snake() -> void:
@@ -113,9 +120,31 @@ func check_self_eaten() -> void:
 			end_game()
 
 
+func move_food() -> void:
+	while regen_food:
+		regen_food = false
+		food_pos = Vector2(randi_range(0, cells - 1), randi_range(0, cells - 1))
+		for i in range(len(snake_data)):
+			if food_pos == snake_data[i]:
+				regen_food = true
+	$Food.position = (food_pos * cell_size) + Vector2(0, cell_size)
+	regen_food = true
+
+
 func check_food_eaten() -> void:
-	pass
+	if snake_data[0] == food_pos:
+		score += 1
+		$HUD.get_node("ScoreLabel").text = "SCORE: " + str(score)
+		add_segment(snake_data[-1])
+		move_food()
 
 
 func end_game() -> void:
-	print("end game")
+	move_timer.stop()
+	game_over_menu.show()
+	game_started = false
+	get_tree().paused = true
+
+
+func _on_game_over_menu_restart():
+	new_game()
